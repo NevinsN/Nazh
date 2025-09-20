@@ -4,6 +4,7 @@ import os  # imports os module
 from dotenv import load_dotenv  # imports modules to handle .env files
 
 from modules import dice_roll
+from modules import dice_view
 
 # loads .env file
 load_dotenv()
@@ -16,7 +17,7 @@ intents = discord.Intents.default()
 intents.message_content = True  # access message content
 
 # retrieves the client object from discord.py, and creates the bot
-bot = commands.Bot(command_prefix=":", intents=intents)
+bot = commands.Bot(command_prefix="!", intents=intents)
 
 
 # event listener to detect when bot switches from offline to online
@@ -36,6 +37,13 @@ async def on_ready():
     # prints number of guilds bot is installed on
     print("Nahz is assisting " + str(guild_count) + " guilds.")
 
+@bot.command(name="build")
+async def build_dice_pool(ctx):
+    view = dice_view.MyView(ctx)
+    if ctx.author == bot.user:
+        return
+
+    await ctx.send("Hello there!", view=view)
 
 @bot.command(name="roll")
 async def roll_dice(ctx, dice_notation: str):
