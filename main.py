@@ -37,6 +37,7 @@ async def on_ready():
     # prints number of guilds bot is installed on
     print("Nahz is assisting " + str(guild_count) + " guilds.")
 
+
 @bot.command(name="build")
 async def build_dice_pool(ctx):
     view = dice_view.MyView(ctx)
@@ -45,22 +46,35 @@ async def build_dice_pool(ctx):
 
     await ctx.send("Hello there!", view=view)
 
-@bot.command(name="roll")
-async def roll_dice(ctx, dice_notation: str):
-    # roll dice in XdY notation
-    try:
-        numDice, numSides = map(int, dice_notation.lower().split('d'))
-    except ValueError:
-        await ctx.send("Invalid dice notation. Please use XdY format")
 
-    if numDice <= 0 or numSides <= 0:
-        await ctx.send("Number of dice and sides must be above 0.")
+@bot.command(name="roll")
+async def roll_dice(ctx, dice_command: str):
+    # roll dice in XdY notation
+
+    dice_pool = dice_roll.DiceRoll(dice_command)
+
+    if dice_pool.getErrorMessage() != "none":
+        await ctx.send(f"{dice_pool.getErrorMessage()}, {ctx.author.mention}")
         return
 
-    rolls = dice_roll.roll(numDice, numSides)
-    total = sum(rolls)
+    rolls = dice_pool.roll()
+    total = sum(rolls) + dice_pool.getModifiers()
 
-    await ctx.send(f"Rolling {numDice}d{numSides}: {', '.join(map(str, rolls))} (Total: {total})")
+    if dice_pool.getModifiers() != 0:
+        await ctx.send(f"{ctx.author.mention}\n"
+                       f"Rolling {dice_pool.getNumDice()}"
+                       f"d{dice_pool.getNumSides()}"
+                       f"+{dice_pool.getModifiers()}:\n"
+                       f"=== [{']['.join(map(str, rolls))}] ===\n"
+                       f"(Subtotal: {sum(rolls)} "
+                       f"+ {dice_pool.getModifiers()})\n"
+                       f"(Total: {total})")
+    else:
+        await ctx.send(f"{ctx.author.mention}\n"
+                       f"Rolling {dice_pool.getNumDice()}"
+                       f"d{dice_pool.getNumSides()}:\n"
+                       f"=== [{']['.join(map(str, rolls))}] ===\n"
+                       f"(Total: {total})")
 
 # Executes bot with token
 bot.run(DISCORD_TOKEN)
