@@ -48,7 +48,7 @@ async def build_dice_pool(ctx):
 
 
 @bot.command(name="roll")
-async def roll_dice(ctx, dice_command: str):
+async def roll_dice(ctx, *, dice_command: str):
     # roll dice in XdY notation
 
     dice_pool = dice_roll.DiceRoll(dice_command)
@@ -57,24 +57,7 @@ async def roll_dice(ctx, dice_command: str):
         await ctx.send(f"{dice_pool.getErrorMessage()}, {ctx.author.mention}")
         return
 
-    rolls = dice_pool.roll()
-    total = sum(rolls) + dice_pool.getModifiers()
-
-    if dice_pool.getModifiers() != 0:
-        await ctx.send(f"{ctx.author.mention}\n"
-                       f"Rolling {dice_pool.getNumDice()}"
-                       f"d{dice_pool.getNumSides()}"
-                       f"+{dice_pool.getModifiers()}:\n"
-                       f"=== [{']['.join(map(str, rolls))}] ===\n"
-                       f"(Subtotal: {sum(rolls)} "
-                       f"+ {dice_pool.getModifiers()})\n"
-                       f"(Total: {total})")
-    else:
-        await ctx.send(f"{ctx.author.mention}\n"
-                       f"Rolling {dice_pool.getNumDice()}"
-                       f"d{dice_pool.getNumSides()}:\n"
-                       f"=== [{']['.join(map(str, rolls))}] ===\n"
-                       f"(Total: {total})")
+    await dice_pool.getAndSendResultMessage(ctx)
 
 # Executes bot with token
 bot.run(DISCORD_TOKEN)
