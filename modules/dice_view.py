@@ -6,8 +6,6 @@ class MyView(discord.ui.View):
         super().__init__()
         # You can add persistent views here if needed for restarts
 
-        #emoji = ctx.guild.fetch_emoji(":1Roll:")
-
         self.add_item(discord.ui.Button(label="d4", row=0))
         self.add_item(discord.ui.Button(label="d6", row=0))
         self.add_item(discord.ui.Button(label="d8", row=0))

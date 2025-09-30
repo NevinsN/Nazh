@@ -5,6 +5,7 @@ from dotenv import load_dotenv  # imports modules to handle .env files
 
 from modules import dice_roll
 from modules import dice_view
+from web_server import keep_alive
 
 # loads .env file
 load_dotenv()
@@ -59,5 +60,8 @@ async def roll_dice(ctx, *, dice_command: str):
 
     await dice_pool.getAndSendResultMessage(ctx)
 
-# Executes bot with token
-bot.run(DISCORD_TOKEN)
+if __name__ == '__main__':
+    keep_alive() # start web server
+
+    # Executes bot with token
+    bot.run(DISCORD_TOKEN)
