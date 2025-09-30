@@ -73,7 +73,7 @@ class DiceRoll():
                                       "numSides" : 6, 
                                       "modifiers" : 0,
                                       "plot" : True})
-                break
+                continue
 
             for char in command:
                 if char == 'a' or char == 'd':
@@ -150,7 +150,7 @@ class DiceRoll():
 
             if roll["preCodes"] == "":
                 currentRolls["roll"] = self.roll(roll)
-                currentRolls["total"] = sum(currentRolls["roll"])
+                currentRolls["total"] = sum(currentRolls["roll"]) + roll["modifiers"]
             else:
                 currentRolls["roll"] = self.roll({"numDice": roll["numDice"] + len(roll["preCodes"]), "numSides": roll["numSides"]})
                 
@@ -169,7 +169,9 @@ class DiceRoll():
                         testRolls = testRolls[2:]
                 
                 if len(testRolls) > 0:
-                    currentRolls["total"] += sum(testRolls)
+                    currentRolls["total"] += sum(testRolls) + roll["modifiers"]
+                else:
+                    currentRolls["total"] += roll["modifiers"]
                 
                 if roll["plot"] == True:
                     currentRolls["preCodes"] += "Plot"
@@ -204,7 +206,7 @@ class DiceRoll():
                 testCodes = roll["preCodes"]
                 testRolls = roll["roll"]
 
-                message += f"> =**{testCodes + "Plot" if roll["plot"] == True else str(roll["code"])}**=="
+                message += f"> =**{testCodes if roll["plot"] == True else str(roll["code"])}**=="
 
                 while len(testCodes) > 0:
                     if testCodes[0] == "a":
