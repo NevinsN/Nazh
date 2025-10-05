@@ -1,8 +1,9 @@
 import discord  # imports discord.py to build a bot
-from discord.ext import commands
+from discord.ext import commands # imports commands to handle command functions
 import os  # imports os module
 from dotenv import load_dotenv  # imports modules to handle .env files
 
+# Imports from other classes
 from modules import dice_roll
 from modules import dice_view
 from web_server import keep_alive
@@ -38,28 +39,33 @@ async def on_ready():
     # prints number of guilds bot is installed on
     print("Nahz is assisting " + str(guild_count) + " guilds.")
 
-
+# Function to handle the build command, which allows to build a 
+# dice pool utilizing a more visual UI
 @bot.command(name="build")
 async def build_dice_pool(ctx):
     view = dice_view.MyView(ctx)
     if ctx.author == bot.user:
         return
 
-    await ctx.send("Hello there!", view=view)
+    await ctx.send("Let's get started.", view=view)
 
 
+# Function to handle the roll command, the primary function of the bot
 @bot.command(name="roll")
 async def roll_dice(ctx, *, dice_command: str):
-    # roll dice in XdY notation
-
+    # creates an instance of the DiceRoll class
+    # Uses ctx, the prompting message, and dice_command as a string
     dice_pool = dice_roll.DiceRoll(dice_command)
 
+    # Checks if there is an error present
     if dice_pool.getErrorMessage() != "none":
         await ctx.send(f"{dice_pool.getErrorMessage()}, {ctx.author.mention}")
         return
 
+    # Performs the roll operation
     await dice_pool.getAndSendResultMessage(ctx)
 
+# Quick function to help the bot stay alive on free hosting services 
 if __name__ == '__main__':
     keep_alive() # start web server
 
