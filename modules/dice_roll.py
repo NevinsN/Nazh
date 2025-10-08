@@ -1,4 +1,5 @@
 import secrets  # import to handle secure dice rolls
+from discord.ext import commands # imports commands to handle command functions
 
 
 class DiceRoll():
@@ -175,6 +176,12 @@ class DiceRoll():
     # Function to handle the actual roll logic and returns it to be passed to user
     async def getAndSendResultMessage(self, ctx):
         allRolls = [] # array of dictionaries for the roll results
+
+        #Checks if it's a context or interaction object and sets userMention accordingly
+        if isinstance(ctx, commands.Context):
+            userMention = ctx.author.mention
+        else:
+            userMention = ctx.user.mention
         
         # goes through each roll in self.rolls
         for roll in self.getRolls():
@@ -223,7 +230,7 @@ class DiceRoll():
             allRolls.append(currentRolls) # add to allRolls
 
         # Builds the return message so the bot can communicate results
-        message = f"""{ctx.author.mention}\n**Rolling:**\n* """ # begins message
+        message = f"""{userMention}\n**Rolling:**\n* """ # begins message
             
         # loops through allRolls to add them to message for printing
         for index, roll in enumerate(allRolls):
@@ -287,5 +294,10 @@ class DiceRoll():
                 else: # otherwise, add modifiers
                     message += f"==**{{ {str(roll["total"])} }}**\n"
 
-        await ctx.send(message) # sends message via discord
+        # Checks if it's a context or interaction object and sends message accordingly
+        if isinstance(ctx, commands.Context):
+            await ctx.send(message) # sends message via discord
+        else:
+            await ctx.response.send_message(message)
+        
                    

@@ -5,7 +5,7 @@ from dotenv import load_dotenv  # imports modules to handle .env files
 
 # Imports from other classes
 from modules import dice_roll
-from modules import dice_view
+from modules import dice_views
 from web_server import keep_alive
 
 # loads .env file
@@ -43,7 +43,7 @@ async def on_ready():
 # dice pool utilizing a more visual UI
 @bot.command(name="build")
 async def build_dice_pool(ctx):
-    view = dice_view.MyView(ctx)
+    view = dice_views.MainView(ctx)
     if ctx.author == bot.user:
         return
 
