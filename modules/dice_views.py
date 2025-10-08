@@ -84,7 +84,10 @@ class BuilderView(discord.ui.View):
     async def numSides_callback(self, interaction: discord.Interaction, select: discord.ui.Select):
         self.numSides = select.values[0]
 
-        self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+        if self.numSides == 'p':
+            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+        else:
+            self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
         await interaction.edit_original_response(content=f"Current Dice: {','.join(self.returnString)}[ {self.workingString} ]")
     
