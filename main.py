@@ -68,6 +68,8 @@ async def roll_dice(ctx, *, dice_command: str):
 # Quick function to help the bot stay alive on free hosting services 
 if __name__ == '__main__':
     keep_alive() # start web server
+    
+    print(f"Running bot build: {os.getenv('RENDER_GIT_COMMIT')}")
 
     # Executes bot with token
     bot.run(DISCORD_TOKEN)
