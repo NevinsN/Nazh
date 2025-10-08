@@ -233,6 +233,5 @@ class BuilderView(discord.ui.View):
 
         # performs the roll and closes the session
         roll = dice_roll.DiceRoll(', '.join(self.returnString))
-        await roll.getAndSendResultMessage(interaction)
         await interaction.edit_original_response(content=f"Rolling For: {', '.join(self.returnString)}[ {self.workingString} ] /n/nPlease dismiss message.", view=None)
-        
+        await roll.getAndSendResultMessage(interaction)
