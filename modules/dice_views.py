@@ -54,7 +54,7 @@ class BuilderView(discord.ui.View):
         self.numDice = select.values[0]
 
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -85,7 +85,7 @@ class BuilderView(discord.ui.View):
         self.numSides = select.values[0]
 
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -110,7 +110,7 @@ class BuilderView(discord.ui.View):
                                 discord.SelectOption(label="10", value='10')
                                ],
                                row = 2)
-        # callback function that: 
+    # callback function that: 
     # - sets modifiers to current value
     # - updates working string with new value
     # - defers and edits original message with new dice information
@@ -118,7 +118,7 @@ class BuilderView(discord.ui.View):
         self.modifiers = select.values[0]
 
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -131,7 +131,7 @@ class BuilderView(discord.ui.View):
             self.modifiers = str(int(self.modifiers) * -1)
 
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -144,7 +144,7 @@ class BuilderView(discord.ui.View):
             self.modifiers = str(int(self.modifiers) * -1)
 
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -163,7 +163,7 @@ class BuilderView(discord.ui.View):
         
         # updates workingString and the ui
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -182,7 +182,7 @@ class BuilderView(discord.ui.View):
 
         # updates workingString and the ui
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -195,7 +195,7 @@ class BuilderView(discord.ui.View):
 
         # updates workingString and the ui
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
@@ -220,7 +220,7 @@ class BuilderView(discord.ui.View):
 
         # updates workingString and the ui
         if self.numSides == 'p':
-            self.workingString = f"{self.preCodes}{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
+            self.workingString = f"{self.preCodes}{self.numSides}"
         else:
             self.workingString = f"{self.preCodes}{self.numDice}d{self.numSides}{'+' if int(self.modifiers) >= 0 else ''}{self.modifiers}"
         await interaction.response.defer()
