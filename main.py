@@ -1,80 +1,78 @@
-import discord  # imports discord.py to build a bot
-from discord.ext import commands # imports commands to handle command functions
-import os  # imports os module
-from dotenv import load_dotenv  # imports modules to handle .env files
+import discord  
+from discord.ext import commands 
+import os  
+import asyncio
+from dotenv import load_dotenv  
+from discord.errors import LoginFailure, HTTPException
 
-# Imports from other classes
+# Modular Imports
 from modules import dice_roll
 from modules import dice_views
 from web_server import keep_alive
 
-# loads .env file
+# 1. SECURITY & CONFIGURATION
 load_dotenv()
-
-# gets token from .env file
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
-# SRE Best Practice: Fail Fast if infrastructure secrets are missing
 if not DISCORD_TOKEN:
-    print("ERROR: DISCORD_TOKEN not found in environment. Deployment aborted.")
+    print("ERROR: DISCORD_TOKEN missing. Deployment aborted.")
     exit(1)
 
-# load default intents and set needed intents
 intents = discord.Intents.default()
-intents.message_content = True  # access message content
-
-# retrieves the client object from discord.py, and creates the bot
+intents.message_content = True  
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-
-# event listener to detect when bot switches from offline to online
+# 2. EVENT LISTENERS
 @bot.event
 async def on_ready():
-    # counter to track number of guilds using bot
-    guild_count = 0
+    # Clean, high-signal logging
+    print(f"STATUS: Nahz is online. Connectivity: {len(bot.guilds)} guilds.")
+    
+    commit = os.getenv('RENDER_GIT_COMMIT', 'Local Build')
+    print(f"TRACE: Deployment Version {commit}")
 
-    # loop to find all guilds bot is on and increment guild_Count for each
-    for guild in bot.guilds:
-        # print server name and id
-        print(f"- {guild.id} (name: {guild.name})")
-
-        # increment guild_count
-        guild_count += 1
-
-    # prints number of guilds bot is installed on
-    print("Nahz is assisting " + str(guild_count) + " guilds.")
-
-# Function to handle the build command, which allows to build a 
-# dice pool utilizing a more visual UI
+# 3. COMMANDS
 @bot.command(name="build")
 async def build_dice_pool(ctx):
-    view = dice_views.MainView(ctx)
     if ctx.author == bot.user:
         return
-
+    view = dice_views.MainView(ctx)
     await ctx.send("Let's get started.", view=view)
 
-
-# Function to handle the roll command, the primary function of the bot
 @bot.command(name="roll")
 async def roll_dice(ctx, *, dice_command: str):
-    # creates an instance of the DiceRoll class
-    # Uses ctx, the prompting message, and dice_command as a string
     dice_pool = dice_roll.DiceRoll(dice_command)
-
-    # Checks if there is an error present
     if dice_pool.getErrorMessage() != "none":
         await ctx.send(f"{dice_pool.getErrorMessage()}, {ctx.author.mention}")
         return
-
-    # Performs the roll operation
     await dice_pool.getAndSendResultMessage(ctx)
 
-# Quick function to help the bot stay alive on free hosting services 
-if __name__ == '__main__':
-    keep_alive() # start web server
-    
-    print(f"Running bot build: {os.getenv('RENDER_GIT_COMMIT')}")
+# 4. RELIABILITY LAYER
+async def start_bot():
+    retries = 0
+    max_retries = 5
+    while retries < max_retries:
+        try:
+            await bot.start(DISCORD_TOKEN)
+        except HTTPException as e:
+            if e.status == 429: # Rate Limited
+                wait_time = (2 ** retries) * 30 
+                print(f"RETRY: Rate limit hit. Waiting {wait_time}s...")
+                await asyncio.sleep(wait_time)
+                retries += 1
+            else:
+                raise e
+        except LoginFailure:
+            print("CRITICAL: Authentication failed. Reset Token.")
+            break 
 
-    # Executes bot with token
-    bot.run(DISCORD_TOKEN)
+# 5. ENTRY POINT
+if __name__ == '__main__':
+    # Pass 'bot' to the web server so it can display guilds at /guilds
+    keep_alive(bot) 
+    
+    print("INITIALIZING: Starting asynchronous event loop...")
+    try:
+        asyncio.run(start_bot())
+    except KeyboardInterrupt:
+        print("SHUTDOWN: Service stopped by user.")
