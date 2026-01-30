@@ -14,6 +14,11 @@ load_dotenv()
 # gets token from .env file
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 
+# SRE Best Practice: Fail Fast if infrastructure secrets are missing
+if not DISCORD_TOKEN:
+    print("ERROR: DISCORD_TOKEN not found in environment. Deployment aborted.")
+    exit(1)
+
 # load default intents and set needed intents
 intents = discord.Intents.default()
 intents.message_content = True  # access message content
