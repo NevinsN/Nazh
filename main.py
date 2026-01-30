@@ -50,24 +50,31 @@ async def roll_dice(ctx, *, dice_command: str):
 
 # 4. RELIABILITY LAYER (The Exponential Backoff Fix)
 async def start_bot():
+    """Handles connection to Discord with enhanced SRE logging."""
     retries = 0
     max_retries = 5
     while retries < max_retries:
         try:
-            # We use bot.start() for custom event loop management
+            print(f"ATTEMPT: Connection try {retries + 1}...")
             await bot.start(DISCORD_TOKEN)
         except HTTPException as e:
-            if e.status == 429: # Rate Limited
-                wait_time = (2 ** retries) * 60 # SRE Strategy: Wait 1m, 2m, 4m...
-                print(f"RETRY: Rate limit hit. Waiting {wait_time}s before next Identify attempt.")
+            if e.status == 429:
+                wait_time = (2 ** retries) * 60 
+                print(f"RETRY: Rate limit (429) hit. Waiting {wait_time}s...")
                 await asyncio.sleep(wait_time)
                 retries += 1
             else:
-                print(f"HTTP ERROR: {e.status} - {e.text}")
-                raise e
+                print(f"HTTP ERROR: Status {e.status} - {e.text}")
+                break
         except LoginFailure:
-            print("CRITICAL: Authentication failed. Please verify your token in Render settings.")
+            print("CRITICAL: Invalid Token. Deployment stopped.")
             break 
+        except Exception as e:
+            print(f"DEBUG: Handshake failed with error: {type(e).__name__} - {e}")
+            # If it's a timeout, we retry
+            await asyncio.sleep(10)
+            retries += 1
+ 
 
 # 5. ENTRY POINT
 if __name__ == '__main__':
