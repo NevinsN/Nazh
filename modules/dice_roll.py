@@ -13,7 +13,6 @@ class DiceRoll:
     def _process_input(self) -> None:
         parts = [p.strip() for p in self._input_str.split(",")]
         for part in parts:
-            # Regex: (tags)(count)d(sides)(modifier)
             match = re.match(r"([a-z]+)?(\d+)d(\d+)([+-]\d+)?", part.lower())
             if not match:
                 self.error_message = f"Invalid format: '{part}'"
@@ -29,47 +28,46 @@ class DiceRoll:
             self._execute_roll(int(count), int(sides), int(mod or 0), tags)
 
     def _execute_roll(self, count: int, sides: int, mod: int, tags: list) -> None:
-        final_rolls = []
+        final_results = []
+        calc_values = []
+        
         for i in range(count):
             tag = tags[i] if i < len(tags) else None
-            d1 = secrets.randbelow(sides) + 1
             
-            if tag == 'a':
-                d2 = secrets.randbelow(sides) + 1
-                final_rolls.append(max(d1, d2))
-            elif tag == 'd':
-                d2 = secrets.randbelow(sides) + 1
-                final_rolls.append(min(d1, d2))
-            else:
-                final_rolls.append(d1)
+            if tag == 'p':  # Plot Die Logic
+                r = secrets.randbelow(6) + 1
+                if r == 1: val, lbl = 2, "!!(T)"
+                elif r == 2: val, lbl = 4, "!!(T)"
+                elif r >= 5: val, lbl = 0, "**(O)**"
+                else: val, lbl = 0, ""
+                final_results.append(f"[{r}{lbl}]")
+                calc_values.append(val)
+            elif tag in ['a', 'd']: # Advantage/Disadvantage
+                d1, d2 = secrets.randbelow(sides) + 1, secrets.randbelow(sides) + 1
+                kept = max(d1, d2) if tag == 'a' else min(d1, d2)
+                drop = min(d1, d2) if tag == 'a' else max(d1, d2)
+                sym = "↑" if tag == 'a' else "↓"
+                final_results.append(f"[{kept}{sym}({drop})]")
+                calc_values.append(kept)
+            else: # Standard Die
+                d = secrets.randbelow(sides) + 1
+                final_results.append(f"[{d}]")
+                calc_values.append(d)
 
         self.rolls.append({
             "count": count, "sides": sides, "mod": mod,
-            "individual": final_rolls, "total": sum(final_rolls) + mod,
-            "tags": tags # Stored for visual output
+            "display": "".join(final_results),
+            "total": sum(calc_values) + mod
         })
 
-    async def send_result_message(self, interaction: discord.Interaction) -> None:
+    async def send_result_message(self, interaction: discord.Interaction, view: discord.ui.View = None) -> None:
         output = [f"**Rolling:**\n• `{self._input_str}`\n\n**Results:**"]
+        for r in self.rolls:
+            m = f"{r['mod']:+}" if r['mod'] != 0 else ""
+            output.append(f"=`{r['count']}d{r['sides']}{m}`=={r['display']}==**{{ {r['total']} }}**")
         
-        for roll in self.rolls:
-            mod_str = f"{roll['mod']:+}" if roll['mod'] != 0 else ""
-            dice_str = f"{roll['count']}d{roll['sides']}{mod_str}"
-            
-            # Format results: Bold modified dice, normal for others
-            res_list = []
-            for i, val in enumerate(roll['individual']):
-                if i < len(roll['tags']):
-                    tag_label = "↑" if roll['tags'][i] == 'a' else "↓"
-                    res_list.append(f"[{val}{tag_label}]")
-                else:
-                    res_list.append(f"[{val}]")
-            
-            bracketed = "".join(res_list)
-            output.append(f"=`{dice_str}`=={bracketed}==**{{ {roll['total']} }}**")
-        
-        msg = "\n".join(output)
+        content = "\n".join(output)
         if interaction.response.is_done():
-            await interaction.followup.send(msg)
+            await interaction.followup.send(content=content, view=view)
         else:
-            await interaction.response.send_message(msg)
+            await interaction.response.send_message(content=content, view=view)
