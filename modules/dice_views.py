@@ -27,9 +27,14 @@ class BuilderView(discord.ui.View):
         self.num_dice = str(int(self.num_dice) + 1)
         await self.update_view(interaction)
 
-    @discord.ui.button(label="Adv (a)", style=discord.ButtonStyle.secondary, row=1)
+    @discord.ui.button(label="Adv (a)", style=discord.ButtonStyle.success, row=1)
     async def add_adv(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.tags = "a" if "a" not in self.tags else ""
+        self.tags = "a"
+        await self.update_view(interaction)
+
+    @discord.ui.button(label="Dis (d)", style=discord.ButtonStyle.danger, row=1)
+    async def add_dis(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.tags = "d"
         await self.update_view(interaction)
 
     @discord.ui.button(label="Plot Die", style=discord.ButtonStyle.success, emoji="🎭", row=2)
@@ -43,18 +48,13 @@ class BuilderView(discord.ui.View):
         self.tags = ""
         await self.update_view(interaction)
 
-    @discord.ui.button(label="Undo", style=discord.ButtonStyle.danger, emoji="🔙", row=3)
-    async def undo(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.pool_list: self.pool_list.pop()
-        await self.update_view(interaction)
-
     @discord.ui.button(label="Roll Publicly", style=discord.ButtonStyle.primary, emoji="🎲", row=3)
     async def roll_pool(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer() #
+        await interaction.response.defer() 
         dice_str = ", ".join(self.pool_list) if self.pool_list else self._gen_str()
         roll_data = DiceRoll(dice_str)
         cog = interaction.client.get_cog("DiceCog")
         if cog:
             from modules.dice_cog import CopyButtonView
             await interaction.followup.send(embed=cog.create_embed(interaction.user, roll_data), view=CopyButtonView(dice_str))
-            await interaction.edit_original_response(content="✅ **Roll Sent!**", view=None)
+            await interaction.edit_original_response(content="✅ **Roll Dispatched!**", view=None)

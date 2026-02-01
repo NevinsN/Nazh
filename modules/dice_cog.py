@@ -9,8 +9,10 @@ class DiceCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="roll", description="Quick roll or build a session")
+    @app_commands.command(name="roll", description="Roll dice. Accepts quick strings or full pools.")
     async def roll(self, interaction: discord.Interaction, pool: Optional[str] = None, build: bool = False):
+        # MERGE LOGIC: Discord doesn't natively split 'positional' and 'named' 
+        # in slash commands easily, but we treat 'pool' as the combined input.
         roll_str = pool if pool else "1d20"
         
         if not build:
@@ -33,7 +35,8 @@ class DiceCog(commands.Cog):
             embed.description = f"❌ {roll_data.error_message}"
             return embed
 
-        # Table: Result | Pool | Dice
+        # Alignment: RESULT FIRST | POOL | INDIVIDUAL
+        # Using monospaced block for alignment
         table_rows = ["**Total** | **Pool** | **Rolls**", ":--- | :--- | :---"]
 
         for p in roll_data.rolls:
@@ -44,13 +47,12 @@ class DiceCog(commands.Cog):
             floor = " *(M)*" if p.get('was_floored') else ""
             plot = f" (+{roll_data.plot_bonus}P)" if is_d20 and roll_data.plot_bonus > 0 else ""
             
-            # Formatting for vertical alignment
             res_str = f"**{final_total}**{plot}{floor}"
             table_rows.append(f"{res_str} | `{label}` | `{p['display']}`")
 
         embed.description = "\n".join(table_rows)
         if roll_data.plot_bonus > 0:
-            embed.set_footer(text="P = Plot Bonus Applied | M = Minimum 1 Applied")
+            embed.set_footer(text="P = Plot Bonus Applied | M = Minimum 1 Rule")
             embed.color = discord.Color.gold()
         return embed
 

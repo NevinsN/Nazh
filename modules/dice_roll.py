@@ -18,11 +18,13 @@ class DiceRoll:
             if not match:
                 self.error_message = f"Invalid format: '{part}'"
                 return
+            
             tags_str, count_str, sides_str, mod_str = match.groups()
             count, sides, mod = int(count_str), int(sides_str), int(mod_str or 0)
             tags = list(tags_str) if tags_str else []
+            
             if count > 20:
-                self.error_message = f"Pool size too large. Max 20."
+                self.error_message = f"Pool size too large. Max 20 dice."
                 return
             self._execute_roll(count, sides, mod, tags, part)
 
@@ -39,11 +41,10 @@ class DiceRoll:
             tag = tags[i] if i < len(tags) else None
             if tag == 'p': # Plot Die logic
                 r = secrets.randbelow(6) + 1
-                # 1 results in +2, 2 results in +4
                 bonus = 2 if r == 1 else (4 if r == 2 else 0)
                 lbl = "!!(T)" if r <= 2 else ("**(O)**" if r >= 5 else "")
                 final_results.append(f"[{format_die(r, 6)}{lbl}]")
-                calc_values.append(0) # Plot dice total to 0
+                calc_values.append(0) 
                 self.plot_bonus = bonus
             elif tag in ['a', 'd']:
                 d1, d2 = secrets.randbelow(sides) + 1, secrets.randbelow(sides) + 1
@@ -57,7 +58,6 @@ class DiceRoll:
                 final_results.append(f"[{format_die(d, sides)}]")
                 calc_values.append(d)
 
-        # FIX: Unified indentation for the floor logic
         raw_total = sum(calc_values) + (0 if is_plot else mod)
         pool_total = max(1, raw_total)
         was_floored = pool_total > raw_total and not is_plot
