@@ -4,49 +4,29 @@ from discord.ext import commands
 from modules.dice_roll import DiceRoll
 
 class AddPoolModal(discord.ui.Modal, title="Configure Dice Pool"):
-    # Individual fields for high-precision entry on mobile
-    num_dice = discord.ui.TextInput(
-        label="Number of Dice",
-        placeholder="e.g., 1",
-        default="1",
-        min_length=1,
-        max_length=2
-    )
-    sides = discord.ui.TextInput(
-        label="Dice Sides (d20, d6, etc.)",
-        placeholder="20",
-        default="20",
-        min_length=1,
-        max_length=3
-    )
-    modifier = discord.ui.TextInput(
-        label="Modifier (+/-)",
-        placeholder="0",
-        default="0",
-        required=False
-    )
-    tags = discord.ui.TextInput(
-        label="Tags (a = Adv, d = Disadv)",
-        placeholder="Leave blank for normal",
-        required=False,
-        max_length=1
-    )
+    num_dice = discord.ui.TextInput(label="Number of Dice", default="1", max_length=2)
+    sides = discord.ui.TextInput(label="Dice Sides", default="20", max_length=3)
+    modifier = discord.ui.TextInput(label="Modifier (+/-)", default="0", required=False)
+    tags = discord.ui.TextInput(label="Tags (a=Adv, d=Disadv)", required=False, max_length=1)
 
     def __init__(self, parent_view):
         super().__init__()
         self.parent_view = parent_view
 
     async def on_submit(self, interaction: discord.Interaction):
-        # Assemble the dice string from the modal inputs
+        # We MUST acknowledge the modal submit immediately
+        await interaction.response.defer(ephemeral=True)
+        
         tag = self.tags.value.lower() if self.tags.value else ""
-        try:
-            val = int(self.modifier.value) if self.modifier.value else 0
-            mod_str = f"{val:+}" if val != 0 else ""
-        except ValueError:
-            mod_str = ""
-
-        pool_string = f"{tag}{self.num_dice.value}d{self.sides.value}{mod_str}"
+        mod = self.modifier.value if self.modifier.value else "0"
+        # Ensure mod has a sign
+        if mod.isdigit() or (mod.startswith('-') and mod[1:].isdigit()):
+            mod = f"{int(mod):+}" if int(mod) != 0 else ""
+        
+        pool_string = f"{tag}{self.num_dice.value}d{self.sides.value}{mod}"
         self.parent_view.pools.append(pool_string)
+        
+        # Update the original builder message
         await self.parent_view.update_builder_message(interaction)
 
 class DiceBuilderView(discord.ui.View):
@@ -62,6 +42,7 @@ class DiceBuilderView(discord.ui.View):
 
     @discord.ui.button(label="Add Plot Die", style=discord.ButtonStyle.success, emoji="🎭")
     async def plot_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
         self.pools.append("p1d6")
         button.disabled = True
         button.label = "Plot Die Added"
@@ -69,96 +50,71 @@ class DiceBuilderView(discord.ui.View):
 
     @discord.ui.button(label="Remove Last", style=discord.ButtonStyle.danger, emoji="🔙")
     async def undo_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.pools:
-            return await interaction.response.send_message("Nothing to remove!", ephemeral=True)
-        
-        removed = self.pools.pop()
-        
-        # Re-enable Plot Die button if we just removed it
-        if removed == "p1d6":
-            for child in self.children:
-                if isinstance(child, discord.ui.Button) and "Plot" in str(child.label):
-                    child.disabled = False
-                    child.label = "Add Plot Die"
-        
+        await interaction.response.defer(ephemeral=True)
+        if self.pools:
+            removed = self.pools.pop()
+            if removed == "p1d6":
+                for child in self.children:
+                    if isinstance(child, discord.ui.Button) and "Plot" in str(child.label):
+                        child.disabled = False
+                        child.label = "Add Plot Die"
         await self.update_builder_message(interaction)
 
     @discord.ui.button(label="Roll Publicly", style=discord.ButtonStyle.primary, emoji="🎲")
     async def roll_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if interaction.user.id != self.user_id:
-            return await interaction.response.send_message("Not your session!", ephemeral=True)
-            
-        # Acknowledge the button click immediately
+        # 1. Defer immediately to prevent 404/10062
         await interaction.response.defer(ephemeral=True)
         
+        # 2. Process math
         full_input = ", ".join(self.pools)
-        # Send the actual roll results
         await self.cog.process_roll(interaction, full_input, ephemeral=False)
         
-        # Update the ephemeral builder to show it's finished
+        # 3. Cleanup builder
         await interaction.edit_original_response(content="✅ **Roll Sent!**", view=None)
         self.stop()
 
     async def update_builder_message(self, interaction: discord.Interaction):
         pool_display = "\n".join([f"🔹 `{p}`" for p in self.pools]) or "*Empty Session*"
-        content = f"🏗️ **Dice Builder Session**\n\n**Staged Pools:**\n{pool_display}\n\n*Finalize to post publicly!*"
-        await interaction.response.edit_message(content=content, view=self)
+        content = f"🏗️ **Dice Builder Session**\n\n**Staged Pools:**\n{pool_display}"
+        await interaction.edit_original_response(content=content, view=self)
 
 class DiceCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="roll", description="Quick roll or build a multi-pool session")
+    @app_commands.command(name="roll", description="Quick roll or build a session")
     async def roll(self, interaction: discord.Interaction, pool: str = "1d20", build: bool = False):
         if not build:
-            # Tell Discord to wait so we don't timeout
+            # Fast Path: Defer first, then process
             await interaction.response.defer(ephemeral=False)
             await self.process_roll(interaction, pool, ephemeral=False)
         else:
-            # Builder path is already interactive, but let's start it fresh
+            # Builder Path: Initial message is the response
             view = DiceBuilderView(interaction.user.id, [pool], self)
             await interaction.response.send_message(
                 content=f"🏗️ **Dice Builder Session**\n\n**Staged Pools:**\n🔹 `{pool}`",
-                view=view,
-                ephemeral=True
+                view=view, ephemeral=True
             )
 
     async def process_roll(self, interaction: discord.Interaction, pool_str: str, ephemeral: bool = False):
         try:
             roll_data = DiceRoll(pool_str)
-            
             if roll_data.error_message:
                 return await interaction.followup.send(roll_data.error_message, ephemeral=True)
 
             embed = self.create_embed(interaction.user, roll_data)
-            
-            # Since we 'deferred' above, we MUST use followup here
+            # Since we always defer before calling this, we ALWAYS use followup
             await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-                
         except Exception as e:
             await interaction.followup.send(f"❌ **Error:** {str(e)}", ephemeral=True)
 
     def create_embed(self, user, roll_data):
-        embed = discord.Embed(
-            title="🎲 Nazh Engine Result",
-            color=discord.Color.blue(),
-            timestamp=discord.utils.utcnow()
-        )
+        embed = discord.Embed(title="🎲 Nazh Engine Result", color=discord.Color.blue())
         embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-
         for i, pool in enumerate(roll_data.rolls):
-            name = f"Pool {i+1}: {pool['input']}"
-            # Bold the total for readability
-            value = f"**{pool['total']}** ⟵ {pool['display']}"
-            embed.add_field(name=name, value=value, inline=False)
-
+            embed.add_field(name=f"Pool {i+1}: {pool['input']}", value=f"**{pool['total']}** ⟵ {pool['display']}", inline=False)
         if roll_data.plot_bonus > 0:
-            embed.add_field(
-                name="✨ Plot Influence", 
-                value=f"The Plot Die added a **+{roll_data.plot_bonus}** bonus to all d20s!", 
-                inline=False
-            )
-        
+            embed.add_field(name="✨ Plot Influence", value=f"+{roll_data.plot_bonus} bonus applied!", inline=False)
         return embed
 
 async def setup(bot):
