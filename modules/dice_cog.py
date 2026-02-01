@@ -125,19 +125,31 @@ class DiceCog(commands.Cog):
             roll_data = DiceRoll(pool_str)
             
             if roll_data.error_message:
-                target = interaction.followup if interaction.response.is_done() else interaction.response
-                return await target.send_message(roll_data.error_message, ephemeral=True)
+                # Use followup if the interaction was already responded to (common in Builders)
+                if interaction.response.is_done():
+                    return await interaction.followup.send(roll_data.error_message, ephemeral=True)
+                return await interaction.response.send_message(roll_data.error_message, ephemeral=True)
 
             embed = self.create_embed(interaction.user, roll_data)
             
+            # THE FIX: If we are coming from a button click in a View, 
+            # we MUST use followup.send() because the interaction was 'consumed' 
+            # by the button click or modal submit.
             if interaction.response.is_done():
                 await interaction.followup.send(embed=embed, ephemeral=ephemeral)
             else:
                 await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+                
+        except discord.errors.NotFound:
+            # This handles the case where the interaction expired (3-second limit)
+            print("Interaction expired. This usually happens if the engine takes too long or Discord is laggy.")
         except Exception as e:
             msg = f"❌ **System Error:** {str(e)}"
-            target = interaction.followup if interaction.response.is_done() else interaction.response
-            await target.send_message(msg, ephemeral=True)
+            if interaction.response.is_done():
+                await interaction.followup.send(msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(msg, ephemeral=True)
+
 
     def create_embed(self, user, roll_data):
         embed = discord.Embed(
