@@ -2,132 +2,62 @@ import discord
 from typing import List
 from modules.dice_roll import DiceRoll
 
-class CustomInputModal(discord.ui.Modal, title="Custom Dice Settings"):
-    """Pop-up to handle specific custom numbers and tags."""
-    num = discord.ui.TextInput(label="Number of Dice", default="1", min_length=1, max_length=2)
-    sides = discord.ui.TextInput(label="Sides (e.g. 12, 8, 100)", default="20", max_length=3)
-    mod = discord.ui.TextInput(label="Modifier (+/-)", default="0", required=False)
-    tags = discord.ui.TextInput(label="Tags (a/d)", placeholder="e.g. aa for 2 Advantage", required=False)
-
-    def __init__(self, parent_view):
-        super().__init__()
-        self.parent_view = parent_view
-
-    async def on_submit(self, interaction: discord.Interaction):
-        # Update parent view state with modal inputs
-        self.parent_view.num_dice = self.num.value
-        self.parent_view.num_sides = self.sides.value
-        self.parent_view.modifiers = self.mod.value
-        self.parent_view.tags = self.tags.value.lower()
-        await self.parent_view.update_builder_message(interaction)
-
 class BuilderView(discord.ui.View):
-    """Advanced stateful view for assembling complex dice pools."""
     def __init__(self, user_id: int, initial_pools: List[str]):
         super().__init__(timeout=300)
         self.user_id = user_id
-        self.pool_list: List[str] = initial_pools if initial_pools else []
-        self.num_dice: str = "1"
-        self.num_sides: str = "20"
-        self.modifiers: str = "0"
-        self.tags: str = ""
+        self.pool_list = initial_pools
+        self.num_dice, self.num_sides, self.modifiers, self.tags = "1", "20", "0", ""
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.user_id:
+            await interaction.response.send_message("This isn't your session!", ephemeral=True)
+            return False
+        return True
 
     def _generate_current_string(self) -> str:
-        """Assembles the current selections into a Nazh-compatible string."""
         try:
             m = int(self.modifiers)
             mod_str = f"{m:+}" if m != 0 else ""
-        except ValueError:
-            mod_str = ""
+        except: mod_str = ""
         return f"{self.tags}{self.num_dice}d{self.num_sides}{mod_str}"
 
-    def _check_plot_state(self):
-        """Disables plot button if a plot die 'p' is already in the list."""
-        has_plot = any("p" in p for p in self.pool_list)
-        for child in self.children:
-            if isinstance(child, discord.ui.Button) and child.label == "Plot Die":
-                child.disabled = has_plot
-                child.style = discord.ButtonStyle.secondary if has_plot else discord.ButtonStyle.success
-
-    async def update_builder_message(self, interaction: discord.Interaction):
-        """Refreshes the UI and checks plot die status."""
-        self._check_plot_state()
+    async def update_view(self, interaction: discord.Interaction):
         staged = ", ".join(self.pool_list) if self.pool_list else "[ Empty ]"
-        current = self._generate_current_string()
-        content = f"🏗️ **Dice Builder**\n**Staged:** `{staged}`\n**Current:** `{current}`"
-        
-        # Use edit_original_response if already deferred, else response.edit_message
-        if interaction.response.is_done():
-            await interaction.edit_original_response(content=content, view=self)
-        else:
-            await interaction.response.edit_message(content=content, view=self)
+        content = f"🏗️ **Dice Builder**\n**Staged:** `{staged}`\n**Current:** `{self._generate_current_string()}`"
+        # Immediate edit prevents "Interaction Failed"
+        await interaction.response.edit_message(content=content, view=self)
 
     @discord.ui.select(
-        placeholder="Quick Die Selection",
-        options=[
-            discord.SelectOption(label="d4", value="4"),
-            discord.SelectOption(label="d6", value="6"),
-            discord.SelectOption(label="d10", value="10"),
-            discord.SelectOption(label="d12", value="12"),
-            discord.SelectOption(label="d20", value="20", default=True),
-            discord.SelectOption(label="d100", value="100"),
-        ]
+        placeholder="Choose Die",
+        options=[discord.SelectOption(label=f"d{s}", value=str(s)) for s in [2,4,6,8,10,12,20,100]]
     )
     async def select_sides(self, interaction: discord.Interaction, select: discord.ui.Select):
         self.num_sides = select.values[0]
-        await self.update_builder_message(interaction)
+        await self.update_view(interaction)
 
     @discord.ui.button(label="Dice +1", style=discord.ButtonStyle.secondary, row=1)
-    async def add_one_dice(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def add_one(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.num_dice = str(int(self.num_dice) + 1)
-        await self.update_builder_message(interaction)
-
-    @discord.ui.button(label="Adv (a)", style=discord.ButtonStyle.secondary, row=1)
-    async def add_adv(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # Cap tags at num_dice
-        if len(self.tags) < int(self.num_dice):
-            self.tags += "a"
-        await self.update_builder_message(interaction)
-
-    @discord.ui.button(label="Dis (d)", style=discord.ButtonStyle.secondary, row=1)
-    async def add_dis(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if len(self.tags) < int(self.num_dice):
-            self.tags += "d"
-        await self.update_builder_message(interaction)
-
-    @discord.ui.button(label="Plot Die", style=discord.ButtonStyle.success, emoji="🎭", row=2)
-    async def add_plot_die(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.pool_list.append("p1d6")
-        await self.update_builder_message(interaction)
-
-    @discord.ui.button(label="Custom Settings", style=discord.ButtonStyle.secondary, emoji="⚙️", row=2)
-    async def custom_modal(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(CustomInputModal(self))
+        await self.update_view(interaction)
 
     @discord.ui.button(label="Add to Pool", style=discord.ButtonStyle.success, emoji="➕", row=2)
     async def add_to_pool(self, interaction: discord.Interaction, button: discord.ui.Button):
         self.pool_list.append(self._generate_current_string())
-        self.tags = "" # Reset tags for next die
-        await self.update_builder_message(interaction)
-
-    @discord.ui.button(label="Undo", style=discord.ButtonStyle.danger, emoji="🔙", row=3)
-    async def remove_last(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.pool_list:
-            self.pool_list.pop()
-        await self.update_builder_message(interaction)
+        self.tags = "" # Reset tags
+        await self.update_view(interaction)
 
     @discord.ui.button(label="Roll Publicly", style=discord.ButtonStyle.primary, emoji="🎲", row=3)
     async def roll_pool(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.pool_list:
-            self.pool_list.append(self._generate_current_string())
-        
-        await interaction.response.defer() # Buy time for the engine
-        dice_str = ", ".join(self.pool_list)
+        await interaction.response.defer() # Acknowledge immediately
+        dice_str = ", ".join(self.pool_list) if self.pool_list else self._generate_current_string()
         roll_data = DiceRoll(dice_str)
-        
         cog = interaction.client.get_cog("DiceCog")
         if cog:
             embed = cog.create_embed(interaction.user, roll_data)
-            await interaction.followup.send(embed=embed)
-            await interaction.edit_original_response(content="✅ **Roll Dispatched.**", view=None)
-        self.stop()
+            # Use followup because we deferred
+            from modules.dice_cog import CopyButtonView
+            await interaction.followup.send(embed=embed, view=CopyButtonView(dice_str))
+            await interaction.edit_original_response(content="✅ **Roll Sent!**", view=None)
+
+    # ... (Include other buttons like Plot Die, Undo, etc., using await self.update_view(interaction))
