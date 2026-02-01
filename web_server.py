@@ -101,7 +101,7 @@ def dashboard():
         roll_total=stats.get("roll_total", 0),
         success_rate=stats.get("roll_success_rate", 100.0),
         build_count=stats.get("build_requests", 0),
-        version=bot_instance.cfg.render_commit if hasattr(bot_instance, 'cfg') else "N/A",
+        version=(bot_instance.cfg.render_commit[:7] if hasattr(bot_instance, 'cfg') and bot_instance.cfg.render_commit else "v1.0.0"),
         last_updated=datetime.now().strftime("%H:%M:%S")
     )
 

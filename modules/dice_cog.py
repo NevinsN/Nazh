@@ -1,44 +1,50 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
+from discord import app_commands
 from modules.dice_roll import DiceRoll
-from modules.dice_views import MainView
 from modules.metrics import metrics
 
 class DiceCog(commands.Cog):
-    """
-    A modular collection of dice-related slash commands.
-    """
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="roll", description="Roll a complex dice pool (e.g., 2d20+5)")
-    @app_commands.describe(dice_input="The dice string to parse (Example: 2d20+5, 1d100)")
-    async def roll(self, interaction: discord.Interaction, dice_input: str):
-        """Processes a dice roll request via slash command."""
-        engine = DiceRoll(dice_input)
+    @app_commands.command(name="roll", description="Standard or Positional Tag Roll (e.g., ad2d20)")
+    @app_commands.describe(
+        dice_string="Quick roll (e.g., 'ad2d20+5')",
+        dice="Number of dice",
+        sides="Number of sides",
+        tags="Positional tags (a/d)",
+        modifier="Flat bonus"
+    )
+    async def roll(
+        self, 
+        interaction: discord.Interaction, 
+        dice_string: str = None,
+        dice: int = None,
+        sides: int = None,
+        tags: str = "",
+        modifier: int = 0
+    ):
+        # 1. Determine input source
+        if dice_string:
+            full_input = dice_string
+        elif dice and sides:
+            metrics.increment("build_requests")
+            mod_part = f"{modifier:+}" if modifier != 0 else ""
+            full_input = f"{tags}{dice}d{sides}{mod_part}"
+        else:
+            await interaction.response.send_message("❌ Provide either a `dice_string` OR `dice` and `sides`.", ephemeral=True)
+            return
+
+        # 2. Execute Engine
+        engine = DiceRoll(full_input)
         
         if engine.error_message != "none":
             metrics.increment("roll_failed")
-            await interaction.response.send_message(
-                f"⚠️ **Error:** {engine.error_message}", ephemeral=True
-            )
-            return
-            
-        metrics.increment("roll_success")
-        await engine.send_result_message(interaction)
+            await interaction.response.send_message(f"❌ {engine.error_message}", ephemeral=True)
+        else:
+            metrics.increment("roll_success")
+            await engine.send_result_message(interaction)
 
-    @app_commands.command(name="build", description="Open the interactive dice pool builder")
-    async def build(self, interaction: discord.Interaction):
-        """Spawns the visual builder for users unfamiliar with roll syntax."""
-        metrics.increment("build_requests")
-        view = MainView()
-        await interaction.response.send_message(
-            "Select dice options below to build your pool:", 
-            view=view, 
-            ephemeral=True
-        )
-
-async def setup(bot: commands.Bot):
-    """Entry point for discord.py extension loading."""
+async def setup(bot):
     await bot.add_cog(DiceCog(bot))
