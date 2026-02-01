@@ -1,3 +1,58 @@
+import asyncio
+import logging
+from config import Config
+from modules.logger import setup_logging
+from modules.bot import NazhBot  # We'll build this class next
+from web_server import keep_alive
+
+async def main():
+    # 1. Initialize Infrastructure
+    setup_logging()
+    logger = logging.getLogger("nazh.init")
+    
+    # 2. Load and Validate Configuration
+    cfg = Config()
+    try:
+        cfg.validate()
+    except ValueError as e:
+        logger.critical(f"BOOT_FAILED: {e}")
+        return
+
+    # 3. Initialize the Bot Class
+    # We move all the @bot.command and @bot.event logic out of this file
+    bot = NazhBot(cfg)
+
+    # 4. Start Web Sidecar (Dashboard)
+    # We pass the bot instance so the dashboard can "see" the bot's data
+    keep_alive(bot)
+
+    # 5. Execute Bot Lifecycle
+    try:
+        logger.info("SYSTEM_START: Initiating Discord handshake...")
+        await bot.start(cfg.discord_token)
+    except Exception as e:
+        logger.error(f"SYSTEM_FATAL: Unexpected shutdown - {e}")
+    finally:
+        await bot.close()
+        logger.info("SYSTEM_OFFLINE: Cleanup complete.")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+# 
+
+
+
+
+
+
+
+
+
+
+
+
+
 import discord  
 from discord.ext import commands 
 import os  
