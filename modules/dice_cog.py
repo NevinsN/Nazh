@@ -35,50 +35,39 @@ class DiceCog(commands.Cog):
             await interaction.response.send_message(content=content, view=view, ephemeral=True)
 
     def create_embed(self, user, roll_data):
-        """Constructs the final result embed with 'Min 1' and 'Plot' logic."""
         embed = discord.Embed(title="🎲 Nazh Engine Result", color=discord.Color.blue())
         embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-        
-        # 1. Handle Engine Errors
-        if roll_data.error_message and roll_data.error_message.lower() != "none":
-            embed.description = f"❌ **Syntax Error:** {roll_data.error_message}"
-            embed.color = discord.Color.red()
-            return embed
 
-        # 2. Iterate through pools
-        for i, pool in enumerate(roll_data.rolls):
-            label = pool.get('label', 'Unknown')
+        # Header of the table
+        table_header = "**Pool** | **Rolls** | **Total**\n:--- | :--- | :---"
+        table_rows = []
+
+        for pool in roll_data.rolls:
+            label = pool.get('label', '???')
             total = pool.get('total', 1)
             display = pool.get('display', '')
             was_floored = pool.get('was_floored', False)
-            
-            # Apply Plot Bonus to d20 pools visually
-            # (Note: Engine calculates plot_bonus, Cog applies it to d20 totals)
+
+            # Handle Plot Bonus for d20s
             is_d20 = "d20" in label.lower()
             final_total = total + (roll_data.plot_bonus if is_d20 else 0)
             
-            # Construct the value string
-            bonus_note = f" (+{roll_data.plot_bonus} Plot)" if is_d20 and roll_data.plot_bonus > 0 else ""
-            floor_note = " *(Min. 1 Applied)*" if was_floored else ""
-            
-            value_str = f"**{final_total}**{bonus_note}{floor_note}\n⟵ {display}"
+            # Formatting flags
+            floor_suffix = "*(M)*" if was_floored else ""
+            plot_suffix = f" (+{roll_data.plot_bonus}P)" if is_d20 and roll_data.plot_bonus > 0 else ""
 
-            embed.add_field(
-                name=f"Pool {i+1}: {label}", 
-                value=value_str, 
-                inline=False
-            )
-            
-        # 3. Plot Influence Branding
+            # Create the row
+            table_rows.append(f"`{label}` | `{display}` | **{final_total}**{plot_suffix}{floor_suffix}")
+
+        # Combine into the description
+        embed.description = table_header + "\n" + "\n".join(table_rows)
+
         if roll_data.plot_bonus > 0:
-            embed.add_field(
-                name="✨ Plot Influence", 
-                value=f"A Plot Die was active! Added **+{roll_data.plot_bonus}** to all d20 pools.", 
-                inline=False
-            )
+            embed.set_footer(text="P = Plot Bonus Applied | M = Minimum 1 Rule Applied")
             embed.color = discord.Color.gold()
-            
+
         return embed
+
 
 async def setup(bot):
     await bot.add_cog(DiceCog(bot))
