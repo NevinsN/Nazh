@@ -1,34 +1,40 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import logging
+from config import Config
 
 class NazhBot(commands.Bot):
-    def __init__(self, cfg):
-        # 1. Initialize Intents (Requirement for reading message content)
+    """
+    The core orchestrator for the Nazh Engine.
+    Inherits from commands.Bot to provide modular Cog support.
+    """
+    def __init__(self, cfg: Config):
         intents = discord.Intents.default()
-        intents.message_content = True 
+        intents.message_content = True  # Required for legacy fallback, though we use Slash
         
-        # 2. Pass prefix and intents to the parent class
-        super().__init__(command_prefix=cfg.command_prefix, intents=intents)
-        
+        super().__init__(
+            command_prefix=cfg.command_prefix, 
+            intents=intents,
+            help_command=None
+        )
         self.cfg = cfg
         self.logger = logging.getLogger("nazh.bot")
 
-    async def setup_hook(self):
+    async def setup_hook(self) -> None:
         """
-        The setup_hook is a special discord.py method that runs before the bot connects.
-        This is where professionals load 'Cogs' (Modular Command Collections).
+        Executes during bot startup. Loads modules and syncs Slash Commands.
         """
-        self.logger.info("BOT_INIT: Loading command modules...")
+        self.logger.info("BOT_INIT: Loading command extensions...")
+        await self.load_extension("modules.dice_cog")
         
-        # We will move your !roll and !build commands into this Cog next
-        try:
-            await self.load_extension("modules.dice_cog")
-            self.logger.info("BOT_INIT: Dice commands loaded successfully.")
-        except Exception as e:
-            self.logger.error(f"BOT_INIT_ERROR: Failed to load dice module: {e}")
+        # SRE Note: Syncing commands globally allows for instant deployment 
+        # tracking across all guilds.
+        self.logger.info("BOT_SYNC: Synchronizing application commands...")
+        await self.tree.sync()
 
-    async def on_ready(self):
-        """Standard health check signal."""
-        self.logger.info(f"CONNECTED: {self.user} is active in {len(self.guilds)} guilds.")
-        self.logger.info(f"VERSION: Running commit {self.cfg.render_commit}")
+    async def on_ready(self) -> None:
+        """Logs connectivity status and versioning metadata."""
+        self.logger.info(f"CONNECTED: Logged in as {self.user} (ID: {self.user.id})")
+        self.logger.info(f"INFRA: Serving {len(self.guilds)} guilds.")
+        self.logger.info(f"VERSION: {self.cfg.render_commit}")

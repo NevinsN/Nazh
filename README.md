@@ -1,43 +1,32 @@
-# Nazh | Asynchronous Python Automation & Dice Engine
+# Nazh Engine | Production-Grade Discord Utility
+A high-concurrency, cryptographically secure dice engine built with SRE principles.
 
-Nazh is a stateful Python application designed to handle high-concurrency dice-rolling requests for tabletop gaming via the Discord API. Built with a focus on service reliability and asynchronous performance, the project serves as a demonstration of production-ready automation and modular system architecture.
+## 🏗 System Architecture
+Unlike standard hobbyist bots, the Nazh Engine is built as a modular monolith with a sidecar observability pattern. This ensures that application logic, infrastructure configuration, and system monitoring remain decoupled.  
 
-## 🛠 Infrastructure & Reliability Features
-To ensure 24/7 service availability in a cloud-native environment, Nazh implements several "Infrastructure-as-Software" patterns:
-- Sidecar Heartbeat Service: Implements a Flask-based web server running on a background daemon thread to provide a health-check endpoint for cloud platform monitors (e.g., Render).
-- Asynchronous Event Loop: Utilizes asyncio and discord.py to manage non-blocking I/O operations, allowing the bot to scale across multiple concurrent requests without process blocking.
-- Secure Configuration Management: Employs python-dotenv for externalized secret management, ensuring sensitive API credentials remain isolated from the application logic.
-- Telemetry & Observability: Includes automated initialization logging to track service load (Guild counts) and system readiness upon deployment.
-
-## 🏗 Modular Architecture
-The codebase is organized into discrete modules to ensure maintainability and testability:
-- main.py: The central orchestrator that manages the bot lifecycle and event listeners.
-- dice_roll.py: A dedicated engine utilizing Python's secrets module for cryptographically secure randomization.
-- dice_views.py: A complex UI state manager that handles ephemeral interactions and transient data storage during the "Build" process.
-- web_server.py: The uptime-persistence layer that prevents platform-enforced idling.
-
-## 🚀 Deployment & Local Setup
-### Prerequisites
-- Python 3.8+
-- A Discord Bot Token (via Discord Developer Portal)
-
-### Installation
-1. Clone the repository:
-```
-git clone https://github.com/NevinsN/Nazh.git
-```
-2. Install dependencies:
-```  
-pip install -r requirements.txt
-```
-3. Configure Environment Variables: Create a .env file in the root directory:
-```
-DISCORD_TOKEN=your_token_here
-```
-4. Run the Service:
-```
-python main.py
-```
-
-## 📈 SRE Insights
-By hosting this on Render and utilizing the keep_alive threading logic, this project maintains high uptime despite being hosted on a platform with aggressive idling policies. This demonstrates the ability to solve operational constraints through creative software engineering
+Key Components:
+- **The Orchestrator (main.py):** A lightweight entry point that manages the application lifecycle and graceful shutdowns.
+- **The Core (modules/bot.py):** An encapsulated Bot class that utilizes Cogs for modular command loading.
+- **The Engine (modules/dice_roll.py):** Uses secrets.randbelow() for cryptographically secure randomization (CSPRNG), ensuring fairness for tabletop gaming.
+- **The Dashboard (web_server.py):** A Flask-based “Sidecar” service that provides real-time telemetry and prevents platform idling.
+ 
+## 🛠 SRE & Reliability Features
+This project serves as a demonstration of Operational Maturity:
+1. **Fail-Fast Configuration:** Implements a validated Config dataclass. If environment variables (Secrets) are missing or malformed, the system terminates during the boot sequence to prevent “zombie” processes.
+2. **Structured Observability:** Replaces standard print statements with a professional logging pipeline (logging.RotatingFileHandler). Logs include timestamps, module origins, and severity levels for easy ingestion into ELK or Grafana.
+3. **Backoff & Retry Logic:** Handles Discord API rate limits (HTTP 429) using an exponential backoff strategy, preventing IP bans during high-traffic reconnects.
+4. **Health-Check Sidecar:** A dedicated web endpoint provides a “Heartbeat” for cloud monitors (Render/AWS), exposing live metrics like latency and guild connectivity.
+ 
+## 🚀 Deployment & Monitoring
+The bot is designed for containerized deployment (Docker/Render).
+### Live Telemetry
+The integrated SRE Dashboard can be accessed at the root URL of the deployment, providing real-time insights into:
+- **Bot Latency:** Real-time WebSocket ping.
+- **Process Uptime:** Tracking system stability.
+- **Version Traceability:** Reporting the specific Git commit hash currently live in production.
+ 
+## 💻 Tech Stack
+- **Language:** Python 3.10+ (Asynchronous I/O)
+- **Frameworks:** Discord.py, Flask
+- **Security:** python-dotenv, secrets (CSPRNG)
+- **Observability: Python Logging, Flask Telemetry
