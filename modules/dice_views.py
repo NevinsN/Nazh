@@ -14,6 +14,7 @@ class CustomInputModal(discord.ui.Modal, title="Custom Dice Settings"):
         self.parent_view = parent_view
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Update parent view state with modal inputs
         self.parent_view.num_dice = self.num.value
         self.parent_view.num_sides = self.sides.value
         self.parent_view.modifiers = self.mod.value
@@ -38,16 +39,28 @@ class BuilderView(discord.ui.View):
             mod_str = f"{m:+}" if m != 0 else ""
         except ValueError:
             mod_str = ""
-        
-        # Format: [tags][count]d[sides][mod]
         return f"{self.tags}{self.num_dice}d{self.num_sides}{mod_str}"
 
+    def _check_plot_state(self):
+        """Disables plot button if a plot die 'p' is already in the list."""
+        has_plot = any("p" in p for p in self.pool_list)
+        for child in self.children:
+            if isinstance(child, discord.ui.Button) and child.label == "Plot Die":
+                child.disabled = has_plot
+                child.style = discord.ButtonStyle.secondary if has_plot else discord.ButtonStyle.success
+
     async def update_builder_message(self, interaction: discord.Interaction):
-        """Refreshes the UI content."""
+        """Refreshes the UI and checks plot die status."""
+        self._check_plot_state()
         staged = ", ".join(self.pool_list) if self.pool_list else "[ Empty ]"
         current = self._generate_current_string()
         content = f"🏗️ **Dice Builder**\n**Staged:** `{staged}`\n**Current:** `{current}`"
-        await interaction.response.edit_message(content=content, view=self)
+        
+        # Use edit_original_response if already deferred, else response.edit_message
+        if interaction.response.is_done():
+            await interaction.edit_original_response(content=content, view=self)
+        else:
+            await interaction.response.edit_message(content=content, view=self)
 
     @discord.ui.select(
         placeholder="Quick Die Selection",
@@ -55,7 +68,7 @@ class BuilderView(discord.ui.View):
             discord.SelectOption(label="d4", value="4"),
             discord.SelectOption(label="d6", value="6"),
             discord.SelectOption(label="d10", value="10"),
-            discord.SelectOption(label="d12", value="12"), # Added d12
+            discord.SelectOption(label="d12", value="12"),
             discord.SelectOption(label="d20", value="20", default=True),
             discord.SelectOption(label="d100", value="100"),
         ]
@@ -71,16 +84,20 @@ class BuilderView(discord.ui.View):
 
     @discord.ui.button(label="Adv (a)", style=discord.ButtonStyle.secondary, row=1)
     async def add_adv(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Adds one 'a' tag, capped at the number of dice."""
+        # Cap tags at num_dice
         if len(self.tags) < int(self.num_dice):
             self.tags += "a"
         await self.update_builder_message(interaction)
 
     @discord.ui.button(label="Dis (d)", style=discord.ButtonStyle.secondary, row=1)
     async def add_dis(self, interaction: discord.Interaction, button: discord.ui.Button):
-        """Adds one 'd' tag, capped at the number of dice."""
         if len(self.tags) < int(self.num_dice):
             self.tags += "d"
+        await self.update_builder_message(interaction)
+
+    @discord.ui.button(label="Plot Die", style=discord.ButtonStyle.success, emoji="🎭", row=2)
+    async def add_plot_die(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.pool_list.append("p1d6")
         await self.update_builder_message(interaction)
 
     @discord.ui.button(label="Custom Settings", style=discord.ButtonStyle.secondary, emoji="⚙️", row=2)
@@ -104,7 +121,7 @@ class BuilderView(discord.ui.View):
         if not self.pool_list:
             self.pool_list.append(self._generate_current_string())
         
-        await interaction.response.defer()
+        await interaction.response.defer() # Buy time for the engine
         dice_str = ", ".join(self.pool_list)
         roll_data = DiceRoll(dice_str)
         
