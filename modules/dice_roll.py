@@ -5,7 +5,7 @@ from typing import List, Dict, Any
 
 class DiceRoll:
     def __init__(self, dice_input: str):
-        self.error_message: str = "none"
+        self.error_message: str = None  
         self.rolls: List[Dict[str, Any]] = []
         self.plot_bonus: int = 0  # Tracks the bonus to apply to d20 pools
         self._input_str = dice_input
