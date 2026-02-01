@@ -37,13 +37,19 @@ class DiceRoll:
 
         for i in range(count):
             tag = tags[i] if i < len(tags) else None
-            if tag == 'p':
-                r = secrets.randbelow(6) + 1
-                bonus = 2 if r <= 2 else (4 if r >= 5 else 0)
-                lbl = "!!(T)" if r <= 2 else ("**(O)**" if r >= 5 else "")
-                final_results.append(f"[{format_die(r, 6)}{lbl}]")
-                calc_values.append(0)
-                self.plot_bonus = bonus
+    if tag == 'p':  # Plot Die Logic (1d6)
+        r = secrets.randbelow(6) + 1
+        # Update: 1 adds +2, 2 adds +4
+        bonus = 2 if r == 1 else (4 if r == 2 else 0)
+        
+        # Display T for Threat (1-2) or O for Opportunity (5-6)
+        lbl = "!!(T)" if r <= 2 else ("**(O)**" if r >= 5 else "")
+        r_formatted = format_die(r, 6)
+        
+        final_results.append(f"[{r_formatted}{lbl}]")
+        calc_values.append(0)  # Plot dice themselves total to 0
+        self.plot_bonus = bonus
+
             elif tag in ['a', 'd']:
                 d1, d2 = secrets.randbelow(sides) + 1, secrets.randbelow(sides) + 1
                 kept, drop = (max(d1, d2), min(d1, d2)) if tag == 'a' else (min(d1, d2), max(d1, d2))

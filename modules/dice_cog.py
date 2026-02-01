@@ -12,13 +12,17 @@ class DiceCog(commands.Cog):
     @app_commands.command(name="roll", description="Quick roll or build a session")
     async def roll(self, interaction: discord.Interaction, pool: Optional[str] = None, build: bool = False):
         roll_str = pool if pool else "1d20"
+
+    if not build:
+        # 1. Defer immediately to avoid "Interaction Failed"
+        await interaction.response.defer(ephemeral=False)
         
-        if not build:
-            # FIX: Defer immediately to prevent timeout
-            await interaction.response.defer(ephemeral=False)
-            roll_data = DiceRoll(roll_str)
-            embed = self.create_embed(interaction.user, roll_data)
-            await interaction.followup.send(embed=embed, view=CopyButtonView(roll_str))
+        roll_data = DiceRoll(roll_str)
+        embed = self.create_embed(interaction.user, roll_data)
+        
+        # 2. Add the Copy String button to quick rolls too
+        await interaction.followup.send(embed=embed, view=CopyButtonView(roll_str))
+
         else:
             initial_pools = [p.strip() for p in pool.split(",")] if pool else []
             view = BuilderView(interaction.user.id, initial_pools)
@@ -29,26 +33,34 @@ class DiceCog(commands.Cog):
     def create_embed(self, user, roll_data):
         embed = discord.Embed(title="🎲 Nazh Engine Result", color=discord.Color.blue())
         embed.set_author(name=user.display_name, icon_url=user.display_avatar.url)
-        
-        if roll_data.error_message:
-            embed.description = f"❌ {roll_data.error_message}"
-            return embed
 
-        # Table Header
-        table = "**Pool** | **Rolls** | **Total**\n:--- | :--- | :---"
-        rows = []
+        # Header with specific spacing for alignment
+        # We use a code block to ensure characters like '|' line up perfectly
+        rows = ["**Total** | **Pool** | **Rolls**", 
+                " :---     | :---           | :---"]
+
         for p in roll_data.rolls:
-            is_d20 = "d20" in p['label'].lower()
-            total = p['total'] + (roll_data.plot_bonus if is_d20 else 0)
-            floor = " *(M)*" if p['was_floored'] else ""
-            plot = f" (+{roll_data.plot_bonus}P)" if is_d20 and roll_data.plot_bonus > 0 else ""
-            rows.append(f"`{p['label']}` | `{p['display']}` | **{total}**{plot}{floor}")
+            label = p['label']
+            is_d20 = "d20" in label.lower()
+            
+            # Calculate final total with plot bonus
+            final_total = p['total'] + (roll_data.plot_bonus if is_d20 else 0)
+            floor_suffix = "*(M)*" if p.get('was_floored') else ""
+            plot_suffix = f" (+{roll_data.plot_bonus}P)" if is_d20 and roll_data.plot_bonus > 0 else ""
+            
+            # Formatting: Result first, then Pool, then Dice string
+            # We use .ljust() to pad the strings so the '|' bars stay aligned
+            total_str = f"**{final_total}**{plot_suffix}{floor_suffix}"
+            row = f"{total_str.ljust(10)} | `{label.ljust(12)}` | `{p['display']}`"
+            rows.append(row)
 
-        embed.description = table + "\n" + "\n".join(rows)
+        embed.description = "\n".join(rows)
+        
         if roll_data.plot_bonus > 0:
-            embed.set_footer(text="P = Plot Bonus | M = Minimum 1 Applied")
+            embed.set_footer(text="P = Plot Bonus Applied | M = Minimum 1 Applied")
             embed.color = discord.Color.gold()
         return embed
+
 
 class CopyButtonView(discord.ui.View):
     def __init__(self, roll_str: str):
