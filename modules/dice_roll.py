@@ -7,6 +7,7 @@ class DiceRoll:
     def __init__(self, dice_input: str):
         self.error_message: str = "none"
         self.rolls: List[Dict[str, Any]] = []
+        self.plot_bonus: int = 0  # Tracks the bonus to apply to d20 pools
         self._input_str = dice_input
         self._process_input()
 
@@ -18,30 +19,36 @@ class DiceRoll:
                 self.error_message = f"Invalid format: '{part}'"
                 return
             
-            tags_str, count, sides, mod = match.groups()
+            tags_str, count_str, sides_str, mod_str = match.groups()
+            count, sides, mod = int(count_str), int(sides_str), int(mod_str or 0)
             tags = list(tags_str) if tags_str else []
             
-            if len(tags) > int(count):
+            # SRE Guardrail: Prevent CPU exhaustion
+            if count > 20:
+                self.error_message = f"Pool size too large ({count}). Max is 20 dice."
+                return
+
+            if len(tags) > count:
                 self.error_message = f"Too many tags ({len(tags)}) for {count} dice."
                 return
                 
-            self._execute_roll(int(count), int(sides), int(mod or 0), tags)
+            self._execute_roll(count, sides, mod, tags)
 
     def _execute_roll(self, count: int, sides: int, mod: int, tags: list) -> None:
         final_results = []
         calc_values = []
+        is_plot = 'p' in tags
         
         for i in range(count):
             tag = tags[i] if i < len(tags) else None
             
             if tag == 'p':  # Plot Die Logic
                 r = secrets.randbelow(6) + 1
-                if r == 1: val, lbl = 2, "!!(T)"
-                elif r == 2: val, lbl = 4, "!!(T)"
-                elif r >= 5: val, lbl = 0, "**(O)**"
-                else: val, lbl = 0, ""
+                bonus = 2 if r == 1 else (4 if r == 2 else 0)
+                lbl = "!!(T)" if r <= 2 else ("**(O)**" if r >= 5 else "")
                 final_results.append(f"[{r}{lbl}]")
-                calc_values.append(val)
+                calc_values.append(bonus)
+                self.plot_bonus = bonus # Store for Cog to apply to d20s
             elif tag in ['a', 'd']: # Advantage/Disadvantage
                 d1, d2 = secrets.randbelow(sides) + 1, secrets.randbelow(sides) + 1
                 kept = max(d1, d2) if tag == 'a' else min(d1, d2)
@@ -54,20 +61,18 @@ class DiceRoll:
                 final_results.append(f"[{d}]")
                 calc_values.append(d)
 
+        # Modifiers apply to standard pools, but not plot buckets
+        pool_total = sum(calc_values) + (0 if is_plot else mod)
+        
         self.rolls.append({
-            "count": count, "sides": sides, "mod": mod,
+            "sides": sides,
+            "label": f"{count}d{sides}{f'{mod:+}' if mod != 0 and not is_plot else ''}",
             "display": "".join(final_results),
-            "total": sum(calc_values) + mod
+            "total": pool_total
         })
 
-    async def send_result_message(self, interaction: discord.Interaction, view: discord.ui.View = None) -> None:
-        output = [f"**Rolling:**\n• `{self._input_str}`\n\n**Results:**"]
-        for r in self.rolls:
-            m = f"{r['mod']:+}" if r['mod'] != 0 else ""
-            output.append(f"=`{r['count']}d{r['sides']}{m}`=={r['display']}==**{{ {r['total']} }}**")
-        
-        content = "\n".join(output)
+    async def send_result_message(self, interaction: discord.Interaction, embed: discord.Embed, view: discord.ui.View) -> None:
         if interaction.response.is_done():
-            await interaction.followup.send(content=content, view=view)
+            await interaction.followup.send(embed=embed, view=view)
         else:
-            await interaction.response.send_message(content=content, view=view)
+            await interaction.response.send_message(embed=embed, view=view)
