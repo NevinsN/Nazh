@@ -44,15 +44,25 @@ class DiceRoll:
         })
 
     async def send_result_message(self, interaction: discord.Interaction) -> None:
-        """Formats and sends the final results to the user."""
-        output = []
-        for roll in self.rolls:
-            mod_str = f"{roll['mod']:+}" if roll['mod'] != 0 else ""
-            results = ", ".join(map(str, roll['individual']))
-            output.append(f"🎲 **{roll['count']}d{roll['sides']}{mod_str}**: `{results}` | **Total: {roll['total']}**")
+    """Formats and sends results using the preferred legacy-modern hybrid style."""
+    output = [f"**Rolling:**\n• {self._input_str}\n\n**Results:**"]
+    
+    for roll in self.rolls:
+        # Reconstruct the dice string (e.g., 2d100-8)
+        mod_str = f"{roll['mod']:+}" if roll['mod'] != 0 else ""
+        dice_str = f"{roll['count']}d{roll['sides']}{mod_str}"
         
-        final_msg = "\n".join(output)
-        if interaction.response.is_done():
-            await interaction.followup.send(final_msg)
-        else:
-            await interaction.response.send_message(final_msg)
+        # Build the bracketed individual results: [71][2][29][78]
+        bracketed_rolls = "".join([f"[{r}]" for r in roll['individual']])
+        
+        # Combine into your signature format: =1d12+4==[8]=={12}
+        line = f"=`{dice_str}`=={bracketed_rolls}==**{{ {roll['total']} }}**"
+        output.append(line)
+    
+    final_msg = "\n".join(output)
+    
+    # Check if we need to reply or followup (crucial for pristine slash commands)
+    if interaction.response.is_done():
+        await interaction.followup.send(final_msg)
+    else:
+        await interaction.response.send_message(final_msg)
