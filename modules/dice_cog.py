@@ -86,13 +86,17 @@ class DiceBuilderView(discord.ui.View):
     @discord.ui.button(label="Roll Publicly", style=discord.ButtonStyle.primary, emoji="🎲")
     async def roll_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.user_id:
-            return await interaction.response.send_message("This isn't your session!", ephemeral=True)
+            return await interaction.response.send_message("Not your session!", ephemeral=True)
             
+        # Acknowledge the button click immediately
+        await interaction.response.defer(ephemeral=True)
+        
         full_input = ", ".join(self.pools)
+        # Send the actual roll results
         await self.cog.process_roll(interaction, full_input, ephemeral=False)
         
-        # Clean up the ephemeral builder
-        await interaction.edit_original_response(content="✅ **Roll Dispatched to Channel.**", view=None)
+        # Update the ephemeral builder to show it's finished
+        await interaction.edit_original_response(content="✅ **Roll Sent!**", view=None)
         self.stop()
 
     async def update_builder_message(self, interaction: discord.Interaction):
@@ -105,14 +109,13 @@ class DiceCog(commands.Cog):
         self.bot = bot
 
     @app_commands.command(name="roll", description="Quick roll or build a multi-pool session")
-    @app_commands.describe(
-        pool="Dice string (e.g. '1d20+5')",
-        build="Set to True to build your roll pool-by-pool"
-    )
     async def roll(self, interaction: discord.Interaction, pool: str = "1d20", build: bool = False):
         if not build:
+            # Tell Discord to wait so we don't timeout
+            await interaction.response.defer(ephemeral=False)
             await self.process_roll(interaction, pool, ephemeral=False)
         else:
+            # Builder path is already interactive, but let's start it fresh
             view = DiceBuilderView(interaction.user.id, [pool], self)
             await interaction.response.send_message(
                 content=f"🏗️ **Dice Builder Session**\n\n**Staged Pools:**\n🔹 `{pool}`",
@@ -125,31 +128,15 @@ class DiceCog(commands.Cog):
             roll_data = DiceRoll(pool_str)
             
             if roll_data.error_message:
-                # Use followup if the interaction was already responded to (common in Builders)
-                if interaction.response.is_done():
-                    return await interaction.followup.send(roll_data.error_message, ephemeral=True)
-                return await interaction.response.send_message(roll_data.error_message, ephemeral=True)
+                return await interaction.followup.send(roll_data.error_message, ephemeral=True)
 
             embed = self.create_embed(interaction.user, roll_data)
             
-            # THE FIX: If we are coming from a button click in a View, 
-            # we MUST use followup.send() because the interaction was 'consumed' 
-            # by the button click or modal submit.
-            if interaction.response.is_done():
-                await interaction.followup.send(embed=embed, ephemeral=ephemeral)
-            else:
-                await interaction.response.send_message(embed=embed, ephemeral=ephemeral)
+            # Since we 'deferred' above, we MUST use followup here
+            await interaction.followup.send(embed=embed, ephemeral=ephemeral)
                 
-        except discord.errors.NotFound:
-            # This handles the case where the interaction expired (3-second limit)
-            print("Interaction expired. This usually happens if the engine takes too long or Discord is laggy.")
         except Exception as e:
-            msg = f"❌ **System Error:** {str(e)}"
-            if interaction.response.is_done():
-                await interaction.followup.send(msg, ephemeral=True)
-            else:
-                await interaction.response.send_message(msg, ephemeral=True)
-
+            await interaction.followup.send(f"❌ **Error:** {str(e)}", ephemeral=True)
 
     def create_embed(self, user, roll_data):
         embed = discord.Embed(
