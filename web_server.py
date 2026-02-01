@@ -43,16 +43,26 @@ DASHBOARD_TEMPLATE = BASE_STYLE + """
 
 @app.route('/')
 def dashboard():
-    if not bot_instance: return "Initializing...", 503
+    if not bot_instance:
+        return "System Initializing...", 503
+    
     stats = metrics.get_report()
+    
     return render_template_string(
         DASHBOARD_TEMPLATE,
-        latency=round(bot_instance.latency * 1000, 2),
+        latency=round(bot_instance.latency * 1000, 2) if bot_instance.latency else 0,
         guild_count=len(bot_instance.guilds),
-        roll_total=stats["roll_total"],
-        success_rate=stats["roll_success_rate"],
-        version=bot_instance.cfg.render_commit
+        uptime=int(time.time() - start_time),
+        
+        # Use .get(key, default) to prevent KeyErrors
+        build_count=stats.get("build_requests", 0),
+        roll_total=stats.get("roll_total", 0),
+        success_rate=stats.get("roll_success_rate", 100.0),
+        
+        version=bot_instance.cfg.render_commit,
+        last_updated=datetime.now().strftime("%H:%M:%S")
     )
+
 
 @app.route('/guilds')
 def guilds():

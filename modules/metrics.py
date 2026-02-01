@@ -20,11 +20,28 @@ class MetricsRegistry:
         with self._lock:
             if metric in self._counts:
                 self._counts[metric] += 1
+            else:
+                # SRE Best Practice: Initialize unknown metrics on the fly 
+                # to prevent logic gaps elsewhere.
+                self._counts[metric] = 1
 
     def get_report(self) -> Dict[str, Union[int, float]]:
         """Calculates and returns a snapshot of system health."""
         with self._lock:
-            # Calculation logic for success_rate...
-            return self._counts.copy()
+            # Create a shallow copy to work with under the lock
+            data = self._counts.copy()
+            
+            # Explicitly calculate and add the keys the dashboard expects
+            # This prevents the 'KeyError: roll_total' seen in logs.
+            total_rolls = data.get("roll_success", 0) + data.get("roll_failed", 0)
+            data["roll_total"] = total_rolls
+            
+            if total_rolls > 0:
+                data["roll_success_rate"] = round((data.get("roll_success", 0) / total_rolls) * 100, 1)
+            else:
+                data["roll_success_rate"] = 100.0
+                
+            return data
 
+# Global instance for app-wide telemetry
 metrics = MetricsRegistry()

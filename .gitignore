@@ -1,3 +1,23 @@
+# Secrets
 .env
-*.log
+.env.example
+
+# Virtual Environments (Standard names)
+venv/
+env/
+myenv/
+pyenv/
+.venv/
+
+# Python Internals
 __pycache__/
+*.py[cod]
+*$py.class
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+nazh_engine.log
