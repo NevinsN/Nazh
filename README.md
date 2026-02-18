@@ -1,4 +1,3 @@
-Here is the consolidated, “Pristine” version of your README.md. It combines the high-level SRE architecture, the technical setup, the specific game mechanics for your users, and server installation instructions into one cohesive document.
 Nazh Engine | Production-Grade Discord Utility
 A high-concurrency, cryptographically secure dice engine built with SRE principles.
 🏗 System Architecture
